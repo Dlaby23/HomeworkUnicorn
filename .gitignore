@@ -1,0 +1,47 @@
+# Environment & Sensitive
+.env
+.env.*
+!.env.example
+
+# Claude-specific (MUST INCLUDE)
+claude.md
+ProjectInfo.md
+Prompt.md
+prompt_archive/
+.counter
+
+# Dependencies
+node_modules/
+vendor/
+venv/
+__pycache__/
+*.pyc
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Testing outputs
+coverage/
+playwright-report/
+screenshots/
+test-results/
+
+# Database
+*.sqlite
+*.db
+migrations/*.sql
+supabase/migrations/*.sql
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Logs & temp
+*.log
+temp/
+tmp/
