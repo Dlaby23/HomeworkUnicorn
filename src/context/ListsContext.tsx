@@ -33,6 +33,7 @@ interface ListsContextValue extends Store {
   deleteList: (listId: string) => void;
   archiveList: (listId: string) => void;
   leaveList: (listId: string) => void;
+  updateListName: (listId: string, newName: string) => void;
   addItem: (listId: string, itemName: string) => void;
   toggleItem: (listId: string, itemId: string) => void;
   deleteItem: (listId: string, itemId: string) => void;
@@ -130,6 +131,14 @@ export function ListsProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateListName = (listId: string, newName: string) => {
+    setLists(prev =>
+      prev.map(list =>
+        list.id === listId ? { ...list, name: newName } : list
+      )
+    );
+  };
+
   // Item management functions
   const addItem = (listId: string, itemName: string) => {
     setLists(prev =>
@@ -209,6 +218,7 @@ export function ListsProvider({ children }: { children: ReactNode }) {
     deleteList,
     archiveList,
     leaveList,
+    updateListName,
     addItem,
     toggleItem,
     deleteItem,

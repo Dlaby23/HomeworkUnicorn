@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useListsContext } from '../context/ListsContext';
 import { Button } from '../components/ui/Button';
 
+type ItemFilter = 'all' | 'unresolved' | 'resolved';
+
 export function ListDetail() {
   const { listId } = useParams<{ listId: string }>();
   const navigate = useNavigate();
@@ -14,11 +16,15 @@ export function ListDetail() {
     deleteItem,
     archiveList,
     deleteList,
-    leaveList
+    leaveList,
+    updateListName
   } = useListsContext();
 
   const [menuOpen, setMenuOpen] = useState(false);
   const [newItemInput, setNewItemInput] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+  const [itemFilter, setItemFilter] = useState<ItemFilter>('all');
 
   const list = lists.find(l => l.id === listId);
 
@@ -49,13 +55,54 @@ export function ListDetail() {
   }
 
   const isOwner = list.owner === currentUser;
-  const unresolvedCount = list.items.filter(item => !item.resolved).length;
   const allMembers = [list.owner, ...list.members];
+
+  // Filter items based on selection
+  const filteredItems = list.items.filter(item => {
+    if (itemFilter === 'unresolved') return !item.resolved;
+    if (itemFilter === 'resolved') return item.resolved;
+    return true;
+  });
+
+  const getItemCountText = () => {
+    if (itemFilter === 'unresolved') {
+      return `${filteredItems.length} unresolved item${filteredItems.length !== 1 ? 's' : ''}`;
+    }
+    if (itemFilter === 'resolved') {
+      return `${filteredItems.length} resolved item${filteredItems.length !== 1 ? 's' : ''}`;
+    }
+    return `${list.items.length} item${list.items.length !== 1 ? 's' : ''} total`;
+  };
 
   const handleAddItem = () => {
     if (newItemInput.trim()) {
       addItem(listId!, newItemInput.trim());
       setNewItemInput('');
+    }
+  };
+
+  const handleStartEditName = () => {
+    setEditedName(list.name);
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = () => {
+    if (editedName.trim() && editedName !== list.name) {
+      updateListName(listId!, editedName.trim());
+    }
+    setIsEditingName(false);
+  };
+
+  const handleCancelEditName = () => {
+    setIsEditingName(false);
+    setEditedName('');
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      handleSaveName();
+    } else if (e.key === 'Escape') {
+      handleCancelEditName();
     }
   };
 
@@ -87,8 +134,31 @@ export function ListDetail() {
 
       <div style={styles.detailHeader}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-          <div>
-            <h2 style={styles.detailHeaderH2}>{list.name}</h2>
+          <div style={{ flex: 1 }}>
+            {isEditingName ? (
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                onKeyDown={handleNameKeyDown}
+                onBlur={handleSaveName}
+                autoFocus
+                style={styles.nameEditInput}
+              />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <h2 style={styles.detailHeaderH2}>{list.name}</h2>
+                {isOwner && (
+                  <button
+                    onClick={handleStartEditName}
+                    style={styles.editButton}
+                    title="Edit list name"
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
+            )}
             <div style={styles.cardMeta}>
               {isOwner ? 'You are the owner' : `Owner: ${list.owner}`}
             </div>
@@ -142,7 +212,38 @@ export function ListDetail() {
       </div>
 
       <div style={styles.detailSection}>
-        <h3 style={styles.detailSectionH3}>Items ({unresolvedCount} unresolved)</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+          <h3 style={styles.detailSectionH3}>Items ({getItemCountText()})</h3>
+          <div style={styles.filterButtons}>
+            <button
+              onClick={() => setItemFilter('all')}
+              style={{
+                ...styles.filterButton,
+                ...(itemFilter === 'all' ? styles.filterButtonActive : {})
+              }}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setItemFilter('unresolved')}
+              style={{
+                ...styles.filterButton,
+                ...(itemFilter === 'unresolved' ? styles.filterButtonActive : {})
+              }}
+            >
+              Unresolved
+            </button>
+            <button
+              onClick={() => setItemFilter('resolved')}
+              style={{
+                ...styles.filterButton,
+                ...(itemFilter === 'resolved' ? styles.filterButtonActive : {})
+              }}
+            >
+              Resolved
+            </button>
+          </div>
+        </div>
 
         <div style={styles.addItemForm}>
           <input
@@ -163,7 +264,7 @@ export function ListDetail() {
         </div>
 
         <ul style={styles.itemList}>
-          {list.items.map(item => (
+          {filteredItems.map(item => (
             <li key={item.id} style={styles.item}>
               <div style={styles.itemCheckbox}>
                 <input
@@ -186,6 +287,9 @@ export function ListDetail() {
           ))}
           {list.items.length === 0 && (
             <li style={styles.item}>No items yet. Add your first item above!</li>
+          )}
+          {list.items.length > 0 && filteredItems.length === 0 && (
+            <li style={styles.item}>No items match the current filter.</li>
           )}
         </ul>
       </div>
@@ -301,5 +405,47 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: '14px',
     transition: 'background 0.2s',
+  },
+  nameEditInput: {
+    fontSize: '24px',
+    padding: '8px 12px',
+    border: '2px solid #007bff',
+    borderRadius: '6px',
+    width: '100%',
+    maxWidth: '500px',
+    outline: 'none',
+    fontWeight: '500',
+  },
+  editButton: {
+    background: 'transparent',
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '18px',
+    color: '#007bff',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    transition: 'background 0.2s',
+  },
+  filterButtons: {
+    display: 'flex',
+    gap: '5px',
+    border: '1px solid #ddd',
+    borderRadius: '6px',
+    overflow: 'hidden',
+  },
+  filterButton: {
+    padding: '6px 12px',
+    border: 'none',
+    background: 'white',
+    cursor: 'pointer',
+    fontSize: '13px',
+    color: '#666',
+    transition: 'all 0.2s',
+    borderRight: '1px solid #ddd',
+  },
+  filterButtonActive: {
+    background: '#007bff',
+    color: 'white',
+    fontWeight: '500',
   },
 };
